@@ -31,6 +31,9 @@ die("<pre>" . print_r($result, 1) . "</pre>");
 
 Credits: David Hollander of https://foxytools.com/ got this project going and is awesome.
 */
+
+use GuzzleHttp\Psr7\Request;
+
 class FoxyClient
 {
     const PRODUCTION_API_HOME = 'https://api.foxycart.com';
@@ -241,13 +244,14 @@ class FoxyClient
         if ($method === "GET" && $post !== null) {
             $guzzle_args['query'] = $post;
         } elseif ($post !== null) {
-            $guzzle_args['body'] = $post;
+            $guzzle_args['form_params'] = $post;
         }
 
         if (!$this->handle_exceptions) {
             return $this->processRequest($method, $uri, $post, $guzzle_args, $is_retry);
         } else {
             try {
+                if (!is_array($guzzle_args)) {dd($guzzle_args);}
                 return $this->processRequest($method, $uri, $post, $guzzle_args, $is_retry);
             //Catch Errors - http error
             } catch (\GuzzleHttp\Exception\RequestException $e) {
@@ -266,10 +270,9 @@ class FoxyClient
             $method = 'POST';
             $guzzle_args['headers']['X-HTTP-Method-Override'] = 'PATCH';
         }
-
-        $api_request = $this->guzzle->createRequest($method, $uri, $guzzle_args);
-        $this->last_response = $this->guzzle->send($api_request);
-        $data = $this->last_response->json();
+        
+        $this->last_response = $this->guzzle->request($method,$uri,$guzzle_args);
+        $data = json_decode($this->last_response->getBody()->getContents(), true);
         $this->saveLinks($data);
         if ($this->hasExpiredAccessTokenError($data) && !$this->shouldRefreshToken()) {
             if (!$is_retry) {
